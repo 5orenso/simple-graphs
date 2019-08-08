@@ -1,0 +1,53 @@
+.lineChart {
+    position: relative; 
+    width: 100%; 
+    padding: 0;
+}
+.svg {
+    /* background: #f0f0f0; */
+    fill: none;
+    stroke: #33C7FF;
+    display: block;
+    stroke-width: 5px;
+
+    height: 100%; 
+    width: 100%; 
+    /* border-left: 1px solid black;
+    border-bottom: 1px solid black; */
+}
+.x-axis {
+    position: absolute;
+    bottom: 0;
+    height: 20px;
+    left: 20px;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 9px;
+}
+.y-axis {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 20px;
+    bottom: 0px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: flex-end;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 9px;
+}
+.y-axis > div::after {
+    margin-right: 4px;
+    content: attr(data-value);
+    color: black;
+    display: inline-block;
+}
+.x-axis > div::after {
+    margin-top: 4px;
+    display: inline-block;
+    content: attr(data-value);
+    color: black;
+}
