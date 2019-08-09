@@ -29,7 +29,8 @@ A nice and light graph module for use on your website.
     <script type="text/javascript" src="simple-graphs-0.1.0.js"></script>
 ```
 
-Then you should have a scalable SVG graph.
+Then you should have a scalable SVG graph looking like this:
+![example-1](examples/example-1.jpg)
 
 
 ### Versioning

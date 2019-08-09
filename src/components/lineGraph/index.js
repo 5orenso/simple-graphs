@@ -15,11 +15,13 @@ function parseTicks(ticks) {
 }
 
 function transformXTick(tick) {
-    if (tick.match(/\d+h/)) {
-        const msDiff = tick.replace(/h/g, '') * 3600 * 1000;
-        const now = util.epoch();
-        const then = now - msDiff;
-        return util.isoDate(then);
+    if (typeof tick === 'string') {
+        if (tick.match(/\d+h/)) {
+            const msDiff = tick.replace(/h/g, '') * 3600 * 1000;
+            const now = util.epoch();
+            const then = now - msDiff;
+            return util.isoDate(then);
+        }
     }
     return tick;
 }
@@ -60,23 +62,37 @@ class LineChart extends Component {
         const X_TICKS = parseTicks(xTicks) || getTicks(tickCount, MAX_X);
         const Y_TICKS = parseTicks(yTicks) || getTicks(tickCount, MAX_Y).reverse();
 
-        const MAX_X2 = Math.max(...data2.map(d => d.x));
-        const MAX_Y2 = yMax2 || Math.max(...data2.map(d => d.y));
-        const fnX2 = val => val / MAX_X2 * width;
-        const fnY2 = val => height - val / MAX_Y2 * height;
-        const Y_TICKS2 = parseTicks(yTicks2) || getTicks(tickCount, MAX_Y2).reverse();
+        let d2;
+        let Y_TICKS2;
+        if (data2.length > 0) {
+            const MAX_X2 = Math.max(...data2.map(d => d.x));
+            const MAX_Y2 = yMax2 || Math.max(...data2.map(d => d.y));
+            const fnX2 = val => val / MAX_X2 * width;
+            const fnY2 = val => height - val / MAX_Y2 * height;
+            Y_TICKS2 = parseTicks(yTicks2) || getTicks(tickCount, MAX_Y2).reverse();
+            d2 = `M${fnX2(data2[0].x)} ${fnY2(data2[0].y)}
+                ${data2.slice(1).map(p => `L${fnX2(p.x)} ${fnY2(p.y)}`).join(' ')}
+            `;
+        }
 
-        const MAX_X3 = Math.max(...data3.map(d => d.x));
-        const MAX_Y3 = yMax3 || Math.max(...data3.map(d => d.y));
-        const MIN_Y3 = yMin3 || Math.min(...data3.map(d => d.y));
-        const fnX3 = val => val / MAX_X3 * width;
-        const fnY3 = (val) => {
-            const rMin = MIN_Y3;
-            const rMax = MAX_Y3;
-            const tMin = 0;
-            const tMax = height;
-            return height - ((((val - rMin) / (rMax - rMin)) * (tMax - tMin)) + tMin);
-        };
+        let d3;
+        if (data3.length > 0) {
+            const MAX_X3 = Math.max(...data3.map(d => d.x));
+            const MAX_Y3 = yMax3 || Math.max(...data3.map(d => d.y));
+            const MIN_Y3 = yMin3 || Math.min(...data3.map(d => d.y));
+            const fnX3 = val => val / MAX_X3 * width;
+            const fnY3 = (val) => {
+                const rMin = MIN_Y3;
+                const rMax = MAX_Y3;
+                const tMin = 0;
+                const tMax = height;
+                return height - ((((val - rMin) / (rMax - rMin)) * (tMax - tMin)) + tMin);
+            };
+            d3 = `M0 ${height} L${fnX3(data3[0].x)} ${fnY3(data3[0].y)} 
+            ${data3.slice(1).map(p => `L${fnX3(p.x)} ${fnY3(p.y)}`).join(' ')}
+                L${fnX3(MAX_X3)} ${height}
+            `;
+        }
 
         // console.table(xTicks);
         // console.table(yTicks);
@@ -84,13 +100,7 @@ class LineChart extends Component {
         const d = `M${fnX(data[0].x)} ${fnY(data[0].y)} 
             ${data.slice(1).map(p => `L${fnX(p.x)} ${fnY(p.y)}`).join(' ')}
         `;
-        const d2 = `M${fnX2(data2[0].x)} ${fnY2(data2[0].y)} 
-            ${data2.slice(1).map(p => `L${fnX2(p.x)} ${fnY2(p.y)}`).join(' ')}
-        `;
-        const d3 = `M0 ${height} L${fnX3(data3[0].x)} ${fnY3(data3[0].y)} 
-            ${data3.slice(1).map(p => `L${fnX3(p.x)} ${fnY3(p.y)}`).join(' ')}
-            L${fnX3(MAX_X3)} ${height}
-        `;
+
         // console.table(d3);
 
         return (
