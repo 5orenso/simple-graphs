@@ -26,6 +26,11 @@ function transformXTick(tick) {
     }
     return tick;
 }
+
+function normalizeRange(val, min, max, newMin, newMax) {
+    return newMin + (val - min) * (newMax - newMin) / (max - min);
+}
+
 class LineChart extends Component {
     render() {
         const {
@@ -33,6 +38,7 @@ class LineChart extends Component {
             jsonDataB = '[]',
             jsonData2 = '[]',
             jsonData2B = '[]',
+            jsonData2C = '[]',
             jsonData3 = '[]',
             width = 600,
             height = 200,
@@ -41,8 +47,16 @@ class LineChart extends Component {
             tickCount = 5, // Number of ticks to show
             yMax, // Y max value to use for yTicks
             yMax2, // Y max value to use for yTicks2
+            yMax2B, // Y max value to use for yTicks2B
+            yMin2B, // Y max value to use for yTicks2B
+            yMax2C, // Y max value to use for yTicks2C
+            yMin2C, // Y max value to use for yTicks2C
             yMax3, // Y max value to use for yTicks3
             yMin3,
+            range2bMin = 0,
+            range2bMax = 100,
+            range2cMin = 0,
+            range2cMax = 100,
             showXTicks, // Show X ticks
             showYTicks, // Show Y ticks
             showYTicks2, // Show Y ticks
@@ -53,6 +67,7 @@ class LineChart extends Component {
             legendB,
             legend2,
             legend2B,
+            legend2C,
             legend3,
         } = this.props;
 
@@ -63,6 +78,7 @@ class LineChart extends Component {
         const dataB = JSON.parse(jsonDataB);
         const data2 = JSON.parse(jsonData2);
         const data2B = JSON.parse(jsonData2B);
+        const data2C = JSON.parse(jsonData2C);
         const data3 = JSON.parse(jsonData3);
 
         const MAX_X = Math.max(...data.map(d => d.x));
@@ -74,6 +90,7 @@ class LineChart extends Component {
 
         let d2;
         let d2B;
+        let d2C;
         let Y_TICKS2;
         if (data2.length > 0) {
             const MAX_X2 = Math.max(...data2.map(d => d.x));
@@ -85,8 +102,31 @@ class LineChart extends Component {
                 ${data2.slice(1).map(p => `L${fnX2(p.x)} ${fnY2(p.y)}`).join(' ')}
             `;
             if (data2B.length) {
-                d2B = `M${fnX2(data2B[0].x)} ${fnY2(data2B[0].y)}
-                    ${data2B.slice(1).map(p => `L${fnX2(p.x)} ${fnY2(p.y)}`).join(' ')}
+                const max = yMax2B || Math.max(...data2B.map(d => d.y));
+                const min = yMin2B || 0;
+                const fnY2B = (val) => {
+                    let value = val;
+                    if (range2bMin >= 0 && range2bMax) {
+                        value = normalizeRange(value, min, max, range2bMin, range2bMax);
+                    }
+                    return height - value / MAX_Y2 * height;    
+                };
+                d2B = `M${fnX2(data2B[0].x)} ${fnY2B(data2B[0].y)}
+                    ${data2B.slice(1).map(p => `L${fnX2(p.x)} ${fnY2B(p.y)}`).join(' ')}
+                `;
+            }
+            if (data2C.length) {
+                const max = yMax2C || Math.max(...data2C.map(d => d.y));
+                const min = yMin2C || 0;
+                const fnY2C = (val) => {
+                    let value = val;
+                    if (range2cMin >= 0 && range2cMax) {
+                        value = normalizeRange(value, min, max, range2cMin, range2cMax);
+                    }
+                    return height - value / MAX_Y2 * height;    
+                };
+                d2C = `M${fnX2(data2C[0].x)} ${fnY2C(data2C[0].y)}
+                    ${data2C.slice(1).map(p => `L${fnX2(p.x)} ${fnY2C(p.y)}`).join(' ')}
                 `;
             }
         }
@@ -135,6 +175,7 @@ class LineChart extends Component {
                     }}
                 >
                     {d3 && <path d={d3} class={style.path3} />}
+                    {d2C && <path d={d2C} class={style.path2C} />}
                     {d2B && <path d={d2B} class={style.path2B} />}
                     {d2 && <path d={d2} class={style.path2} />}
                     {dB && <path d={dB} class={style.pathB} />}
@@ -154,6 +195,9 @@ class LineChart extends Component {
 
                     {legend2B && <line x1='10' y1='45' x2='30' y2='45' class={style.path2B} />}
                     {legend2B && <text x='35' y='50' font-size='10px' class={style.pathText}>{legend2B}</text>}
+
+                    {legend2C && <line x1='10' y1='55' x2='30' y2='55' class={style.path2C} />}
+                    {legend2C && <text x='35' y='60' font-size='10px' class={style.pathText}>{legend2C}</text>}
 
                 </svg>
                 {showXTicks && (
