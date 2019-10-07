@@ -20,6 +20,16 @@
     stroke-width: 5px;
     fill: none;
 }
+.pathCold {
+    stroke: #A0D6F6;
+    stroke-width: 2px;
+    fill: none;
+}
+.pathWarm {
+    stroke: #F62C2C;
+    stroke-width: 2px;
+    fill: none;
+}
 .pathText {
     font-family: Arial, Helvetica, sans-serif;
     stroke: #c0c0c0;

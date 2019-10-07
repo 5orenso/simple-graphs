@@ -3,9 +3,10 @@ import style from './style.css';
 import util from '../../lib/util';
 // import tc from 'fast-type-check';
 
-function getTicks(count, max) {
+function getTicks(count, min, max, prefix = '', postfix = '') {
     const loop = Array.from(Array(count).keys());
-    return loop.map(d => parseInt((max / (count - 1) * d), 10));
+    const range = Math.ceil(max) - Math.floor(min);
+    return loop.map(d => `${prefix}${parseInt((range / (count - 1) * d), 10) + Math.floor(min)}${postfix}`);
 }
 
 function parseTicks(ticks) {
@@ -31,38 +32,124 @@ function normalizeRange(val, min, max, newMin, newMax) {
     return newMin + (val - min) * (newMax - newMin) / (max - min);
 }
 
+function makePath({ data, yMin, yMax, width, height, yRangeMin, yRangeMax, offsetY = 0 }) {
+    if (data && data.length) {
+        const maxX = Math.max(...data.map(d => d.x));
+        const minY = util.isNumber(yMin) ? Math.min(yMin, ...data.map(d => d.y)) : Math.min(...data.map(d => d.y));
+        const maxY = util.isNumber(yMax) ? Math.max(yMax, ...data.map(d => d.y)) : Math.max(...data.map(d => d.y));
+        const realHeight = height - offsetY;
+        const fnX = val => val / maxX * width;
+        const fnY = (val) => {
+            let dataVal = val;
+            if (util.isNumber(yRangeMin) && util.isNumber(yRangeMax)) {
+                dataVal = normalizeRange(dataVal, minY, maxY, yRangeMin, yRangeMax);
+                return realHeight - normalizeRange(dataVal, yRangeMin, yRangeMax, offsetY, height);
+            }
+            dataVal = normalizeRange(dataVal, minY, maxY, minY, maxY);
+            return realHeight - normalizeRange(dataVal, minY, maxY, offsetY, height);
+        };
+
+        const d = `M-100 ${realHeight + offsetY} L${fnX(data[0].x)} ${fnY(data[0].y)} 
+            ${data.slice(1).map(p => `L${fnX(p.x)} ${fnY(p.y)}`).join(' ')}
+            L${fnX(maxX) + 100} ${realHeight + offsetY}
+        `;
+        const dCold = [];
+        const dWarm = [];
+        for (let i = 0, l = data.length; i < l; i += 1) {
+            const pPrev = i > 0 ? data[i - 1] : { x: 0, y: 0};
+            const p = data[i];
+            if (p.y < 0 && pPrev.y < 0) {
+                dCold.push([
+                    { x: fnX(pPrev.x), y: fnY(pPrev.y) },
+                    { x: fnX(p.x), y: fnY(p.y) },
+                ]);
+            }
+            if (p.y > 12 && pPrev.y > 12) {
+                dWarm.push([
+                    { x: fnX(pPrev.x), y: fnY(pPrev.y) },
+                    { x: fnX(p.x), y: fnY(p.y) },
+                ]);
+            }
+        }
+        return { d, dCold, dWarm, maxX, maxY, minY };
+    }
+    return {};
+}
+
 class LineChart extends Component {
+    constructor(props) {
+        super(props);
+        this.setState({
+            jsonData: JSON.parse(props.jsonData || '[]'),
+            jsonDataB: JSON.parse(props.jsonDataB || '[]'),
+            jsonData2: JSON.parse(props.jsonData2 || '[]'),
+            jsonData2B: JSON.parse(props.jsonData2B || '[]'),
+            jsonData2C: JSON.parse(props.jsonData2C || '[]'),
+            jsonData3: JSON.parse(props.jsonData3 || '[]'),
+        })
+        this.loadData(props.apiUrl, 'jsonData');
+        this.loadData(props.apiUrlB, 'jsonDataB');
+        this.loadData(props.apiUrl2, 'jsonData2');
+        this.loadData(props.apiUrl2B, 'jsonData2B');
+        this.loadData(props.apiUrl2C, 'jsonData2C');
+        this.loadData(props.apiUrl3, 'jsonData3');
+    }
+
+    async loadData(apiurl, dataKey) {
+        if (apiurl) {
+            try {
+                const data = await util.fetchApi(apiurl);
+                if (data.length > 0) {
+                    this.setState({
+                        [dataKey]: data,
+                    });
+                }
+                this.loadDataJsonDataTimer = setTimeout(() => this.loadData(apiurl, dataKey), 5 * 60 * 1000);
+                // console.log(apiurl, data);
+            } catch (err) {
+                console.log(`Could not get iot data ${apiurl}: ${err}`);
+            }
+        }
+    }
+
     render() {
         const {
-            jsonData = '[]',
-            jsonDataB = '[]',
-            jsonData2 = '[]',
-            jsonData2B = '[]',
-            jsonData2C = '[]',
-            jsonData3 = '[]',
             width = 600,
             height = 200,
+            offsetY = 0,
             paddingLeft = 0, // Make room for yTicks.
             paddingBottom = 0, // Make room for xTicks.
             tickCount = 5, // Number of ticks to show
-            yMax, // Y max value to use for yTicks
-            yMax2, // Y max value to use for yTicks2
-            yMax2B, // Y max value to use for yTicks2B
-            yMin2B, // Y max value to use for yTicks2B
-            yMax2C, // Y max value to use for yTicks2C
-            yMin2C, // Y max value to use for yTicks2C
-            yMax3, // Y max value to use for yTicks3
-            yMin3,
-            range2bMin = 0,
-            range2bMax = 100,
-            range2cMin = 0,
-            range2cMax = 100,
             showXTicks, // Show X ticks
             showYTicks, // Show Y ticks
-            showYTicks2, // Show Y ticks
             xTicks, // xTicks array to use instead of values. JSON.stringified and backslash escaped.
             yTicks, // yTicks array to use instead of values. JSON.stringified and backslash escaped.
+            yTicksPrefix,
+            yTicksPostfix = '°C',
+
+            yMax, // Y max value to use for yTicks
+            yMin, // Y min value to use for yTicks
+
+            showYTicks2, // Show Y ticks
             yTicks2, // yTicks array to use instead of values. JSON.stringified and backslash escaped.
+            yTicks2Prefix,
+            yTicks2Postfix = '°C',
+            yMax2, // Y max value to use for yTicks2
+            yMin2,
+
+            yMax2B, // Y max value to use for yTicks2B
+            yMin2B, // Y max value to use for yTicks2B
+            range2bMin = 0,
+            range2bMax = 100,
+
+            yMax2C, // Y max value to use for yTicks2C
+            yMin2C, // Y max value to use for yTicks2C
+            range2cMin = 0,
+            range2cMax = 100,
+            
+            yMax3, // Y max value to use for yTicks3
+            yMin3,
+
             legend,
             legendB,
             legend2,
@@ -71,103 +158,99 @@ class LineChart extends Component {
             legend3,
         } = this.props;
 
+        const { 
+            jsonData,
+            jsonDataB,
+            jsonData2,
+            jsonData2B,
+            jsonData2C,
+            jsonData3,
+        } = this.state;
+
         const PADDING_LEFT = paddingLeft || (showYTicks ? 20 : 0);
         const PADDING_BOTTOM = paddingBottom || (showXTicks ? 20 : 0);
 
-        const data = JSON.parse(jsonData);
-        const dataB = JSON.parse(jsonDataB);
-        const data2 = JSON.parse(jsonData2);
-        const data2B = JSON.parse(jsonData2B);
-        const data2C = JSON.parse(jsonData2C);
-        const data3 = JSON.parse(jsonData3);
+        const data = jsonData;
+        const dataB = jsonDataB;
+        const data2 = jsonData2;
+        const data2B = jsonData2B;
+        const data2C = jsonData2C;
+        const data3 = jsonData3;
 
-        const MAX_X = Math.max(...data.map(d => d.x));
-        const MAX_Y = yMax || Math.max(...data.map(d => d.y));
-        const fnX = val => val / MAX_X * width;
-        const fnY = val => height - val / MAX_Y * height;
-        const X_TICKS = parseTicks(xTicks) || getTicks(tickCount, MAX_X);
-        const Y_TICKS = parseTicks(yTicks) || getTicks(tickCount, MAX_Y).reverse();
-
-        let d2;
-        let d2B;
-        let d2C;
-        let Y_TICKS2;
-        if (data2.length > 0) {
-            const MAX_X2 = Math.max(...data2.map(d => d.x));
-            const MAX_Y2 = yMax2 || Math.max(...data2.map(d => d.y));
-            const fnX2 = val => val / MAX_X2 * width;
-            const fnY2 = val => height - val / MAX_Y2 * height;
-            Y_TICKS2 = parseTicks(yTicks2) || getTicks(tickCount, MAX_Y2).reverse();
-            d2 = `M${fnX2(data2[0].x)} ${fnY2(data2[0].y)}
-                ${data2.slice(1).map(p => `L${fnX2(p.x)} ${fnY2(p.y)}`).join(' ')}
-            `;
-            if (data2B.length) {
-                const max = yMax2B || Math.max(...data2B.map(d => d.y));
-                const min = yMin2B || 0;
-                const fnY2B = (val) => {
-                    let value = val;
-                    if (range2bMin >= 0 && range2bMax) {
-                        value = normalizeRange(value, min, max, range2bMin, range2bMax);
-                    }
-                    return height - value / MAX_Y2 * height;    
-                };
-                d2B = `M${fnX2(data2B[0].x)} ${fnY2B(data2B[0].y)}
-                    ${data2B.slice(1).map(p => `L${fnX2(p.x)} ${fnY2B(p.y)}`).join(' ')}
-                `;
-            }
-            if (data2C.length) {
-                const max = yMax2C || Math.max(...data2C.map(d => d.y));
-                const min = yMin2C || 0;
-                const fnY2C = (val) => {
-                    let value = val;
-                    if (range2cMin >= 0 && range2cMax) {
-                        value = normalizeRange(value, min, max, range2cMin, range2cMax);
-                    }
-                    return height - value / MAX_Y2 * height;    
-                };
-                d2C = `M${fnX2(data2C[0].x)} ${fnY2C(data2C[0].y)}
-                    ${data2C.slice(1).map(p => `L${fnX2(p.x)} ${fnY2C(p.y)}`).join(' ')}
-                `;
-            }
-        }
-
-        let d3;
-        if (data3.length > 0) {
-            const MAX_X3 = Math.max(...data3.map(d => d.x));
-            const MAX_Y3 = yMax3 || Math.max(...data3.map(d => d.y));
-            const MIN_Y3 = yMin3 || Math.min(...data3.map(d => d.y));
-            const fnX3 = val => val / MAX_X3 * width;
-            const fnY3 = (val) => {
-                const rMin = MIN_Y3;
-                const rMax = MAX_Y3;
-                const tMin = 0;
-                const tMax = height;
-                return height - ((((val - rMin) / (rMax - rMin)) * (tMax - tMin)) + tMin);
-            };
-            d3 = `M0 ${height} L${fnX3(data3[0].x)} ${fnY3(data3[0].y)} 
-            ${data3.slice(1).map(p => `L${fnX3(p.x)} ${fnY3(p.y)}`).join(' ')}
-                L${fnX3(MAX_X3)} ${height}
-            `;
-        }
+        const common = {
+            width,
+            height,
+            offsetY,
+        };
 
         // console.table(xTicks);
         // console.table(yTicks);
+        const {
+            d,
+            dCold,
+            dWarm,
+            maxX: MAX_X = 0,
+            minY: MIN_Y = 0,
+            maxY: MAX_Y = 0,
+        } = makePath({
+            ...common,
+            data,
+            yMax,
+            yMin,
+        });
 
-        let dB;
-        if (dataB.length) {
-            dB = `M${fnX(dataB[0].x)} ${fnY(dataB[0].y)} 
-                ${dataB.slice(1).map(p => `L${fnX(p.x)} ${fnY(p.y)}`).join(' ')}
-            `;
-        }
-        const d = `M${fnX(data[0].x)} ${fnY(data[0].y)} 
-            ${data.slice(1).map(p => `L${fnX(p.x)} ${fnY(p.y)}`).join(' ')}
-        `;
+        const { d: dB } = makePath({
+            ...common,
+            data: dataB,
+            yMin: MIN_Y,
+            yMax: MAX_Y,
+        });
 
-        // console.table(d3);
+        const {
+            d: d2,
+            minY: MIN_Y2 = 0,
+            maxY: MAX_Y2 = 0,
+        } = makePath({
+            ...common,
+            data: data2,
+            yMin: yMin2,
+            yMax: yMax2,
+        });
+
+        const { d: d2B } = makePath({
+            ...common,
+            data: data2B,
+            yMin: yMin2B,
+            yMax: yMax2B,
+            yRangeMin: range2bMin,
+            yRangeMax: range2bMax,
+        });
+
+        const { d: d2C } = makePath({
+            ...common,
+            data: data2C,
+            yMin: yMin2C,
+            yMax: yMax2C,
+            yRangeMin: range2cMin,
+            yRangeMax: range2cMax,
+        });
+
+        const { d: d3 } = makePath({
+            ...common,
+            data: data3,
+            yMin: yMin3,
+            yMax: yMax3,
+            yRangeMin: MIN_Y2,
+            yRangeMax: MAX_Y2,
+        });
+
+        const X_TICKS = parseTicks(xTicks) || getTicks(tickCount, 0, MAX_X);
+        const Y_TICKS = parseTicks(yTicks) || getTicks(tickCount, MIN_Y, MAX_Y, yTicksPrefix, yTicksPostfix).reverse();
+        const Y_TICKS2 = parseTicks(yTicks2) || getTicks(tickCount, MIN_Y2, MAX_Y2, yTicks2Prefix, yTicks2Postfix).reverse();
 
         return (
             <div class={style.lineChart}>
-                <svg class={style.svg} viewBox='0 0 600 200'
+                <svg class={style.svg} viewBox={`0 0 ${width} ${height}`}
                     style={{
                         'padding-left': `${PADDING_LEFT}px`,
                         'padding-bottom': `${PADDING_BOTTOM}px`,
@@ -180,6 +263,9 @@ class LineChart extends Component {
                     {d2 && <path d={d2} class={style.path2} />}
                     {dB && <path d={dB} class={style.pathB} />}
                     {d && <path d={d} class={style.path} />}
+
+                    {dCold && dCold.map(o => <line x1={o[0].x} y1={o[0].y} x2={o[1].x} y2={o[1].y} class={style.pathCold} />)};
+                    {dWarm && dWarm.map(o => <line x1={o[0].x} y1={o[0].y} x2={o[1].x} y2={o[1].y} class={style.pathWarm} />)};
 
                     {legend && <line x1='10' y1='5' x2='30' y2='5' class={style.path} />}
                     {legend && <text x='35' y='10' font-size='10px' class={style.pathText}>{legend}</text>}

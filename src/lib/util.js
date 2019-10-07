@@ -167,7 +167,7 @@ class Utilities {
      * @returns {Promise<Promise<any>|Array>}
      */
     static async fetchApi(endpoint, opts = {}, body = {}) {
-        const apiServer = Utilities.getApiServer();
+        const apiServer = ''; // Utilities.getApiServer() || '';
 
         const shouldPublish = opts.hasOwnProperty('publish') ? opts.publish : true;
 
@@ -206,6 +206,7 @@ class Utilities {
         }
 
         try {
+            console.log(`${apiServer}${endpoint}${qs ? `?${qs}` : ''}`);
             const response = await fetch(`${apiServer}${endpoint}${qs ? `?${qs}` : ''}`, fetchOpt);
             if (shouldPublish) {
                 PubSub.publish(topics.LOADING_PROGRESS, 100);

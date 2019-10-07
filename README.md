@@ -103,3 +103,6 @@ Bug reports should always be done with a new issue.
 - Twitter: [@sorenso](https://twitter.com/sorenso)
 - Instagram: [@sorenso](https://instagram.com/sorenso)
 - Facebook: [@sorenso](https://facebook.com/sorenso)
+
+
+cp build/simple-graphs-0.4.3.js ../simple-blog/template/global/js/.

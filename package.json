@@ -1,6 +1,6 @@
 {
   "name": "simple-graphs",
-  "version": "0.4.2",
+  "version": "0.5.1",
   "description": "",
   "main": "dist/index.js",
   "umd:main": "dist/index.umd.js",
