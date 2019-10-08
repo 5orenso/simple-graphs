@@ -79,6 +79,10 @@ function makePath({ data, yMin, yMax, width, height, yRangeMin, yRangeMax, offse
     return {};
 }
 
+function randomIntFromInterval(min, max) { // min and max included
+    return Math.floor(Math.random() * (max - min + 1) + min);
+}
+
 class LineChart extends Component {
     constructor(props) {
         super(props);
@@ -90,15 +94,16 @@ class LineChart extends Component {
             jsonData2C: JSON.parse(props.jsonData2C || '[]'),
             jsonData3: JSON.parse(props.jsonData3 || '[]'),
         })
-        this.loadData(props.apiUrl, 'jsonData');
-        this.loadData(props.apiUrlB, 'jsonDataB');
-        this.loadData(props.apiUrl2, 'jsonData2');
-        this.loadData(props.apiUrl2B, 'jsonData2B');
-        this.loadData(props.apiUrl2C, 'jsonData2C');
-        this.loadData(props.apiUrl3, 'jsonData3');
+        this.loadData(props.apiUrl, 'jsonData', randomIntFromInterval(1, 5));
+        this.loadData(props.apiUrlB, 'jsonDataB', randomIntFromInterval(1, 5));
+        this.loadData(props.apiUrl2, 'jsonData2', randomIntFromInterval(1, 5));
+        this.loadData(props.apiUrl2B, 'jsonData2B', randomIntFromInterval(1, 5));
+        this.loadData(props.apiUrl2C, 'jsonData2C', randomIntFromInterval(1, 5));
+        this.loadData(props.apiUrl3, 'jsonData3', randomIntFromInterval(1, 5));
+        this.loadDataJsonDataTimer = {};
     }
 
-    async loadData(apiurl, dataKey) {
+    async loadData(apiurl, dataKey, timeoutMin = 5) {
         if (apiurl) {
             try {
                 const data = await util.fetchApi(apiurl);
@@ -107,8 +112,8 @@ class LineChart extends Component {
                         [dataKey]: data,
                     });
                 }
-                clearTimeout(this.loadDataJsonDataTimer);
-                this.loadDataJsonDataTimer = setTimeout(() => this.loadData(apiurl, dataKey), 5 * 60 * 1000);
+                clearTimeout(this.loadDataJsonDataTimer[apiurl]);
+                this.loadDataJsonDataTimer[apiurl] = setTimeout(() => this.loadData(apiurl, dataKey), timeoutMin * 60 * 1000);
                 // console.log(apiurl, data);
             } catch (err) {
                 console.log(`Could not get iot data ${apiurl}: ${err}`);
@@ -121,7 +126,8 @@ class LineChart extends Component {
         if (debug) {
             console.log(widgetName, 'componentCleanup');
         }
-        clearInterval(this.loadDataJsonDataTimer);
+        const apiUrls = Object.keys(this.loadDataJsonDataTimer);
+        apiUrls.forEach(apiUrl => clearInterval(this.loadDataJsonDataTimer[apiUrl]));
     }
 
     // - - - [ Component events from Preact it self: ] - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
