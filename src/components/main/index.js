@@ -17,10 +17,6 @@ class Main extends Component {
     render() {
         return (
             <div class='container-fluid'>
-                <div class='col-12'>
-                    <Progress />
-                </div>
-
                 <Router onChange={this.handleRoute} history={createHashHistory()}>
                     <LineGraph {...this.props} path='/line' />
                     <LineGraph {...this.props} default />

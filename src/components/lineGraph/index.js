@@ -3,6 +3,9 @@ import style from './style.css';
 import util from '../../lib/util';
 // import tc from 'fast-type-check';
 
+const widgetName = 'simpleGraph';
+const debug = false;
+
 function getTicks(count, min, max, prefix = '', postfix = '') {
     const loop = Array.from(Array(count).keys());
     const range = Math.ceil(max) - Math.floor(min);
@@ -104,6 +107,7 @@ class LineChart extends Component {
                         [dataKey]: data,
                     });
                 }
+                clearTimeout(this.loadDataJsonDataTimer);
                 this.loadDataJsonDataTimer = setTimeout(() => this.loadData(apiurl, dataKey), 5 * 60 * 1000);
                 // console.log(apiurl, data);
             } catch (err) {
@@ -111,6 +115,47 @@ class LineChart extends Component {
             }
         }
     }
+
+    // - - - [ Functions ] - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    componentCleanup() {
+        if (debug) {
+            console.log(widgetName, 'componentCleanup');
+        }
+        clearInterval(this.loadDataJsonDataTimer);
+    }
+
+    // - - - [ Component events from Preact it self: ] - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    // componentWillMount() {
+    //     if (debug) {
+    //         console.log(widgetName, 'componentWillMount');
+    //     }
+    // }
+
+    componentDidMount() {
+        if (debug) {
+            console.log(widgetName, 'componentDidMount');
+        }
+        window.addEventListener('pagehide', () => this.componentCleanup());
+    }
+
+    // componentWillUnmount() {
+    //     if (debug) {
+    //         console.log(widgetName, 'componentWillUnmount');
+    //     }
+    // }
+
+    // Every time something happens:
+    // shouldComponentUpdate(nextProps, nextState) {
+    //     if (debug) {
+    //         console.log(widgetName, 'shouldComponentUpdate');
+    //     }
+    // }
+
+    // componentDidUpdate(prevProps, prevState) {
+    //     if (debug) {
+    //         console.log(widgetName, 'componentDidUpdate');
+    //     }
+    // }
 
     render() {
         const {

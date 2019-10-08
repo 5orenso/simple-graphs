@@ -40,7 +40,7 @@ class Progress extends Component {
     render() {
         const { progress, display } = this.state;
         return (
-            <div class='progress' style='height: 2px;' style={`display: ${display};`}>
+            <div class='progress' style={`display: ${display}; height: 2px;'`}>
                 <div class='progress-bar progress-bar-striped progress-bar-animated'
                     role='progressbar'
                     aria-valuenow={progress}

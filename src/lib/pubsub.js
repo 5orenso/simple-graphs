@@ -4,13 +4,13 @@ const topics = {
     LOG_OUT: 'logOut',
 
     // to show progress when running long-living tasks. Should be [0-100]
-    LOADING_PROGRESS: 'loadingProgress',
+    LOADING_PROGRESS: 'simpleGraphLoadingProgress',
 
     // when user has authenticated, this is used to update to the new token
-    JWT_TOKEN_CHANGED: 'jwtTokenChanged',
+    JWT_TOKEN_CHANGED: 'simpleGraphJwtTokenChanged',
 
-    ERROR_MESSAGE: 'errorMessage',
-    STATUS_MESSAGE: 'statusMessage',
+    ERROR_MESSAGE: 'simpleGraphErrorMessage',
+    STATUS_MESSAGE: 'simpleGraphStatusMessage',
 };
 
 const ps = {

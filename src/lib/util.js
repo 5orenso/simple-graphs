@@ -1,9 +1,9 @@
 import querystring from 'querystring';
 import PubSub, { topics } from './pubsub';
 
-const API_SERVER_KEY = 'apiServer';
-const JWT_TOKEN_KEY = 'jwtToken';
-const USER_EMAIL = 'userEmail';
+const API_SERVER_KEY = 'simpleGraphApiServer';
+const JWT_TOKEN_KEY = 'simpleGraphJwtToken';
+const USER_EMAIL = 'simpleGraphUserEmail';
 const IS_MAC = /Mac/.test(navigator.platform);
 
 class Utilities {
@@ -169,7 +169,7 @@ class Utilities {
     static async fetchApi(endpoint, opts = {}, body = {}) {
         const apiServer = ''; // Utilities.getApiServer() || '';
 
-        const shouldPublish = opts.hasOwnProperty('publish') ? opts.publish : true;
+        const shouldPublish = opts.hasOwnProperty('publish') ? opts.publish : false;
 
         if (shouldPublish) {
             PubSub.publish(topics.LOADING_PROGRESS, 0);
@@ -220,10 +220,9 @@ class Utilities {
         } catch (err) {
             if (shouldPublish) {
                 PubSub.publish(topics.ERROR_MESSAGE, 'An error occurred');
-                return [];
+                PubSub.publish(topics.LOADING_PROGRESS, 100);
             }
-
-            throw err;
+            return [];
         }
     }
 
