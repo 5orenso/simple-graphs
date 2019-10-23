@@ -35,11 +35,49 @@ function normalizeRange(val, min, max, newMin, newMax) {
     return newMin + (val - min) * (newMax - newMin) / (max - min);
 }
 
-function makePath({ data, yMin, yMax, width, height, yRangeMin, yRangeMax, offsetY = 0 }) {
+function round5(x, roundDown = false) {
+    let sign = 1;
+    if (x < 0) {
+        sign = -1;
+    }
+    if (roundDown && sign === 1) {
+        return Math.floor(Math.abs(x) / 5) * 5 * sign;
+    }
+    return Math.ceil(Math.abs(x) / 5) * 5 * sign;
+}
+
+function findMaxY({ data, max }) {
+    if (util.isNumber(max)) {
+        return Math.max(max, ...data.map(d => d.y));
+    }
+    return Math.max(...data.map(d => d.y));
+}
+
+function findMinY({ data, min }) {
+    if (util.isNumber(min)) {
+        return Math.min(min, ...data.map(d => d.y));
+    }
+    return Math.min(...data.map(d => d.y));
+}
+
+function makePath({ data, yMin, yMax, width, height, yRangeMin, yRangeMax, offsetY = 0, maxMinFixed = false }) {
     if (data && data.length) {
         const maxX = Math.max(...data.map(d => d.x));
-        const minY = util.isNumber(yMin) ? Math.min(yMin, ...data.map(d => d.y)) : Math.min(...data.map(d => d.y));
-        const maxY = util.isNumber(yMax) ? Math.max(yMax, ...data.map(d => d.y)) : Math.max(...data.map(d => d.y));
+        let minY;
+        let maxY;
+        if (maxMinFixed) {
+            minY = util.isNumber(yMin) ? yMin : findMinY({ data });
+        } else {
+            minY = util.isNumber(yMin) ? findMinY({ data, min: yMin }) : findMinY({ data });
+            minY = round5(minY, true);
+        }
+        if (maxMinFixed) {
+            maxY = util.isNumber(yMax) ? yMax : findMaxY({ data });
+        } else {
+            maxY = util.isNumber(yMax) ? findMaxY({ data, max: yMax }) : findMaxY({ data });
+            maxY = round5(maxY);
+        }
+
         const realHeight = height - offsetY;
         const fnX = val => val / maxX * width;
         const fnY = (val) => {
@@ -170,7 +208,7 @@ class LineChart extends Component {
             offsetY = 0,
             paddingLeft = 0, // Make room for yTicks.
             paddingBottom = 0, // Make room for xTicks.
-            tickCount = 5, // Number of ticks to show
+            tickCount = 6, // Number of ticks to show
             showXTicks, // Show X ticks
             showYTicks, // Show Y ticks
             xTicks, // xTicks array to use instead of values. JSON.stringified and backslash escaped.
@@ -197,9 +235,12 @@ class LineChart extends Component {
             yMin2C, // Y max value to use for yTicks2C
             range2cMin = 0,
             range2cMax = 100,
-            
-            yMax3, // Y max value to use for yTicks3
+
             yMin3,
+            yMax3, // Y max value to use for yTicks3
+
+            range3Min = 0,
+            range3Max = 100,
 
             legend,
             legendB,
@@ -236,18 +277,25 @@ class LineChart extends Component {
 
         // console.table(xTicks);
         // console.table(yTicks);
+        const dataMaxY = findMaxY({ data, max: yMax });
+        const dataBMaxY = findMaxY({ data: dataB, max: dataMaxY });
+        const MAX_Y = round5(dataBMaxY);
+
+        const dataMinY = findMinY({ data, min: yMin });
+        const dataBMinY = findMinY({ data: dataB, min: dataMinY });
+        const MIN_Y = round5(dataBMinY, true);
+
         const {
             d,
             dCold,
             dWarm,
             maxX: MAX_X = 0,
-            minY: MIN_Y = 0,
-            maxY: MAX_Y = 0,
         } = makePath({
             ...common,
             data,
-            yMax,
-            yMin,
+            yMin: MIN_Y,
+            yMax: MAX_Y,
+            maxMinFixed: true,
         });
 
         const { d: dB } = makePath({
@@ -255,6 +303,7 @@ class LineChart extends Component {
             data: dataB,
             yMin: MIN_Y,
             yMax: MAX_Y,
+            maxMinFixed: true,
         });
 
         const {
@@ -284,6 +333,7 @@ class LineChart extends Component {
             yMax: yMax2C,
             yRangeMin: range2cMin,
             yRangeMax: range2cMax,
+            maxMinFixed: true,
         });
 
         const { d: d3 } = makePath({
@@ -291,8 +341,8 @@ class LineChart extends Component {
             data: data3,
             yMin: yMin3,
             yMax: yMax3,
-            yRangeMin: MIN_Y2,
-            yRangeMax: MAX_Y2,
+            yRangeMin: range3Min,
+            yRangeMax: range3Max,
         });
 
         const X_TICKS = parseTicks(xTicks) || getTicks(tickCount, 0, MAX_X);
